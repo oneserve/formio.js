@@ -74,7 +74,7 @@ export default class Input extends Multivalue {
   }
 
   setInputMask(input, inputMask) {
-    return super.setInputMask(input, (inputMask || this.component.inputMask), !this.component.placeholder);
+    return super.setInputMask(input, (inputMask || this.component.displayMask || this.component.inputMask), !this.component.placeholder);
   }
 
   getMaskOptions() {
