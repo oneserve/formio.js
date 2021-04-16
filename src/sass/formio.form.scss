@@ -1316,3 +1316,7 @@ div[data-oembed-url] {
     }
   }
 }
+
+.formio-component [ref="valueMaskInput"] {
+  display: none;
+}
