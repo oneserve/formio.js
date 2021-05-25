@@ -424,30 +424,38 @@ export default class FileComponent extends Field {
     }
 
     if (this.refs.cameraButton && webViewCamera) {
-      this.addEventListener(this.refs.cameraButton, 'click', (event) => {
+      this.addEventListener(this.refs.cameraButton, "click", (event) => {
         event.preventDefault();
-        webViewCamera.getPicture((success) => {
-          window.resolveLocalFileSystemURL(success, (fileEntry) => {
+        webViewCamera.getPicture(
+          (success) => {
+            window.resolveLocalFileSystemURL(success, (fileEntry) => {
               fileEntry.file((file) => {
                 const reader = new FileReader();
                 reader.onloadend = (evt) => {
-                  const blob = new Blob([new Uint8Array(evt.target.result)], { type: file.type });
+                  const blob = new Blob([new Uint8Array(evt.target.result)], {
+                    type: file.type,
+                  });
                   blob.name = file.name;
                   this.upload([blob]);
                 };
                 reader.readAsArrayBuffer(file);
               });
-            }
-          );
-        }, (err) => {
-          console.error(err);
-        }, {
-          sourceType: webViewCamera.PictureSourceType.CAMERA,
-          encodingType: webViewCamera.EncodingType.PNG,
-          mediaType: webViewCamera.MediaType.PICTURE,
-          saveToPhotoAlbum: true,
-          correctOrientation: false,
-        });
+            });
+          },
+          (err) => {
+            console.error(err);
+          },
+          {
+            sourceType: webViewCamera.PictureSourceType.CAMERA,
+            encodingType: webViewCamera.EncodingType.PNG,
+            mediaType: webViewCamera.MediaType.PICTURE,
+            saveToPhotoAlbum: true,
+            correctOrientation: true,
+            quality: 75,
+            targetWidth: 2000,
+            targetHeight: 2000,
+          }
+        );
       });
     }
 
