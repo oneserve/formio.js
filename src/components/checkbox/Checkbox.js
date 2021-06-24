@@ -31,8 +31,9 @@ export default class CheckBoxComponent extends Field {
 
   get defaultValue() {
     const { name } = this.component;
+    const defaultValue = super.defaultValue;
 
-    return name ? (this.component[name] || this.emptyValue) : (this.component.defaultValue || false).toString() === 'true';
+    return name ? (this.component[name] || this.emptyValue) : (defaultValue || this.component.defaultValue || false).toString() === 'true';
   }
 
   get labelClass() {
@@ -173,7 +174,12 @@ export default class CheckBoxComponent extends Field {
       this.setCheckedState(value) !== undefined ||
       (!this.input && value !== undefined && (this.visible || !this.component.clearOnHide))
     ) {
-      return this.updateValue(value, flags);
+      const changed = this.updateValue(value, flags);
+
+      if (this.isHtmlRenderMode() && flags && flags.fromSubmission && changed) {
+        this.redraw();
+        return changed;
+      }
     }
     return false;
   }

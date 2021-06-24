@@ -50,8 +50,12 @@ import formWithDataGridWithContainerAndConditionals from '../test/forms/dataGrid
 import { nestedFormInWizard } from '../test/fixtures';
 import NativePromise from 'native-promise-only';
 import { fastCloneDeep } from '../lib/utils/utils';
+import truncateMultipleSpaces from '../test/forms/truncateMultipleSpaces';
 import htmlRenderMode from '../test/forms/htmlRenderMode';
 import calculatedValue from '../test/forms/calculatedValue';
+import conditionalDataGridWithTableAndRadio from '../test/forms/conditionalDataGridWithTableAndRadio';
+import calculateValueWithManualOverrideLableValueDataGrid
+  from '../test/forms/calculateValueWithManualOverrideLableValueDataGrid';
 
 /* eslint-disable max-statements */
 describe('Webform tests', function() {
@@ -2200,6 +2204,99 @@ describe('Webform tests', function() {
         }, 1000);
       }).catch(done);
     });
+    it('Should not override value which was set from submission', (done) => {
+      const formElement = document.createElement('div');
+      const form = new Webform(formElement, { language: 'en', template: 'bootstrap3', pdf: true });
+      form.setForm(calculateValueWithManualOverrideLableValueDataGrid).then(() => {
+        form.editing = true;
+        form.setSubmission({
+          state: 'submitted',
+          data: {
+            dataGrid: [
+              { label: '1', value: '1a' },
+              { label: '2', value: '2a' },
+              { label: '3', value: '3a' },
+            ]
+          },
+        });
+        setTimeout(() => {
+          const value1 = form.getComponent(['dataGrid', 0, 'value']);
+          assert.equal(value1.dataValue, '1a', 'Should have a value set from submission');
+          const value2 = form.getComponent(['dataGrid', 1, 'value']);
+          assert.equal(value2.dataValue, '2a', 'Should have a value set from submission');
+          const value3 = form.getComponent(['dataGrid', 2, 'value']);
+          assert.equal(value3.dataValue, '3a', 'Should have a value set from submission');
+          done();
+        }, 1000);
+      }).catch(done);
+    });
+  });
+
+  it('Should set different ids for components inside different Table rows', (done) => {
+    const formElement = document.createElement('div');
+    const form = new Webform(formElement, { language: 'en', template: 'bootstrap3', pdf: true });
+    form.setForm(conditionalDataGridWithTableAndRadio).then(() => {
+      const radioInspection0 = form.getComponent(['inspectionDataGrid', 0, 'initialExam']);
+      Harness.dispatchEvent(
+        'click',
+        radioInspection0.element,
+        'input[value="reject"]',
+        i => i.checked = true,
+      );
+
+      setTimeout(() => {
+        const repairDataGrid0 = form.getComponent(['inspectionDataGrid', 0, 'repairDataGrid']);
+        assert.equal(radioInspection0.dataValue, 'reject', 'Should set value');
+        assert.equal(repairDataGrid0.visible, true, 'Should become visible');
+
+        const radioRepair0 = form.getComponent(['inspectionDataGrid', 0, 'repairDataGrid', 0, 'repairExam']);
+        Harness.dispatchEvent(
+          'click',
+          radioRepair0.element,
+          'input[value="accept"]',
+            i => i.checked = true,
+        );
+
+        setTimeout(() => {
+          assert.equal(radioRepair0.dataValue, 'accept', 'Should set value');
+          const inspectionDataGrid = form.getComponent(['inspectionDataGrid']);
+          inspectionDataGrid.addRow();
+
+          setTimeout(() => {
+            assert.equal(inspectionDataGrid.rows.length, 2, 'Should add a row');
+
+            const radioInspection1 = form.getComponent(['inspectionDataGrid', 1, 'initialExam']);
+            Harness.dispatchEvent(
+              'click',
+              radioInspection1.element,
+              'input[value="reject"]',
+              i => i.checked = true,
+            );
+
+            setTimeout(() => {
+              const repairDataGrid1 = form.getComponent(['inspectionDataGrid', 1, 'repairDataGrid']);
+              assert.equal(radioInspection1.dataValue, 'reject', 'Should set value');
+              assert.equal(repairDataGrid1.visible, true, 'Should become visible');
+
+              const radioRepair1 = form.getComponent(['inspectionDataGrid', 1, 'repairDataGrid', 0, 'repairExam']);
+              Harness.dispatchEvent(
+                'click',
+                form.element,
+                form.element.querySelector(`#${radioRepair1.id}${radioRepair1.row}-accept`),
+                i => i.checked = true
+              );
+
+              setTimeout(() => {
+                assert.equal(radioRepair1.dataValue, 'accept', 'Should set value of the clicked radio');
+                assert.equal(radioRepair0.dataValue, 'accept', 'Value of the radio inside another row should stay the same');
+
+                done();
+              }, 300);
+            }, 350);
+          }, 300);
+        }, 250);
+      }, 350);
+    }).catch(done);
   });
 
   it('Should render components properly', (done) => {
@@ -2381,6 +2478,56 @@ describe('Webform tests', function() {
     .catch((err) => done(err));
   });
 
+  it('Test Truncate Multiple Spaces', (done) => {
+    const formElement = document.createElement('div');
+    const form= new Webform(formElement);
+
+    form.setForm(truncateMultipleSpaces).then(() => {
+      const textFieldRequired = form.getComponent(['textField1']);
+      const textFieldMinMaxLength = form.getComponent(['textField']);
+      const textAreaMinMaxLength = form.getComponent(['textArea']);
+      Harness.dispatchEvent('input', textFieldRequired.element, 'input', (i) => i.value = '        ');
+      Harness.dispatchEvent(
+        'input',
+        textFieldMinMaxLength.element,
+        'input',
+        (i) => i.value = '     546       456     '
+      );
+      Harness.dispatchEvent(
+        'input',
+        textAreaMinMaxLength.element,
+        'textarea',
+        (i) => i.value = '     546       456     '
+      );
+
+      setTimeout(() => {
+        assert.equal(textFieldRequired.dataValue, '        ', 'Should set value');
+        assert.equal(textFieldMinMaxLength.dataValue, '     546       456     ', 'Should set value');
+        assert.equal(textAreaMinMaxLength.dataValue, '     546       456     ', 'Should set value');
+
+        assert.equal(textFieldRequired.errors.length, 1, 'Should be invalid since it does not have a value');
+        assert.equal(
+          textFieldMinMaxLength.errors.length,
+          0,
+          'Should be valid since it value does not exceed the max length after truncating spaces'
+        );
+        assert.equal(
+          textAreaMinMaxLength.errors.length,
+          0,
+          'Should be valid since it value does not exceed the max length after truncating spaces'
+        );
+
+        form.submit(false, {}).finally(() => {
+          assert.equal(textFieldRequired.dataValue, '', 'Should truncate the value before submit');
+          assert.equal(textFieldMinMaxLength.dataValue, '546 456', 'Should truncate the value before submit');
+          assert.equal(textAreaMinMaxLength.dataValue, '546 456', 'Should truncate the value before submit');
+
+          done();
+        });
+      }, 400);
+    }).catch(done);
+  });
+
   it('HTML render mode', (done) => {
     const element = document.createElement('div');
 
@@ -2432,9 +2579,12 @@ describe('Webform tests', function() {
         const customerSelectValueEl = customerSelectEl.querySelector('[ref="value"]');
         const htmlSelectEl = form.element.querySelector('.formio-component-panelHtml5Select');
         const htmlSelectValueEl = htmlSelectEl.querySelector('[ref="value"]');
+        const checkboxEl = form.element.querySelector('.formio-component-page3Iagreetothefollowtherules');
+        const checkboxValueEl = checkboxEl.querySelector('[ref="value"]');
 
         assert.equal(customerSelectValueEl.textContent.trim(), 'bob@example.com', 'Should render Select value properly');
         assert.equal(htmlSelectValueEl.textContent.trim(), 'banana', 'Should render HTML5 Select value properly');
+        assert.equal(checkboxValueEl.textContent.trim(), 'True', 'Should render Checkbox value properly');
 
         done();
       }, 300);
